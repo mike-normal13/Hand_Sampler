@@ -109,26 +109,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate
             print("Buffer Duration prior to setting: " + _audioSession.ioBufferDuration.description);
         }
         
-        //  TODO: this does not exist yet, but it will at some point.
-//        if #available(iOS 12.0, *)
-//        {
-//            //http://stackoverflow.com/questions/34680007/answer/submit#
-//            do
-//            {
-//                try _audioSession.setPreferredIOBufferDuration(_bufferDurations.ten.rawValue);
-//                if(_debugFlag)
-//                {
-//                    print("Buffer duration was set for iOS 12.0");
-//                    print("Actual Buffer duration: " + _audioSession.ioBufferDuration.description);
-//                }
-//            }
-//            catch
-//            {
-//                print("Trouble with setting audio session's buffer duration for iOS 12.0!");
-//            }
-//            return;
-//        }
-        
         if #available(iOS 11.0, *)
         {
             //http://stackoverflow.com/questions/34680007/answer/submit#
@@ -286,204 +266,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate
             {
                 _songTVC.samplerConfigVCArray[i]?.song.masterSoundMod = nil;
                 
-                for j in 0 ..< _songTVC.maxNBanks where _songTVC.samplerConfigVCArray[i]?.song.bankViewStackControllerArray != nil /** 2/2/2018 */
-                //for j in 0 ..< _songTVC.maxNBanks
-                {
-                    //if(_songTVC.samplerConfigVCArray[i]?.song.bankViewStackControllerArray != nil)
-                    //{
-                        _songTVC.samplerConfigVCArray[i]?.song.bankViewStackControllerArray[j] = nil
-                    //}
-                }
+                for j in 0 ..< _songTVC.maxNBanks where _songTVC.samplerConfigVCArray[i]?.song.bankViewStackControllerArray != nil
+                {   _songTVC.samplerConfigVCArray[i]?.song.bankViewStackControllerArray[j] = nil    }
             }
         }
         return visibleSongNumber;
     }
-    
-    //  TODO: we have code in place for releasing all other songs.
-    //          It looks like we are going to have to set all of our active master sound mods to nil.
-    //          Recovering gracefully from this is going to be tough
-    //              especially if we don't pop any VCs
-    //          as of 10/23/2017 this should not be at the top of our priority heap.
-    private func handleMediaServerReset(visibleSongNumber: Int)
-    {
-        //  TODO: find the visible VC.
-        //          if the visible vc happens to be the SongTVC.
-        //              just deallocate all songs.
-        let visibleVC = findVisibleVC();
-        //var visibleSongNumber = -1;
-        
-        //  TODO: before we nil out all the bankVCs
-        //          we should probably pop up to the SamplerConfigVC.....
-        //popToSamplerConfigVCIfNeeded(visibleVC: visibleVC);
-        
-        //  TODO: if a SamplerConfigVC or VC owned by the SamplerConfigVC is visible,
-            //          1:  kill any instantiated Sound mod in any other song
-            //          2:  kill the visible song's sound mod,
-            //          3:  restore the visible song's sound mod.
-        // if we found a visible song
-        if(visibleSongNumber != -1)
-        {
-            //  TODO: just because the SamplerConfigVC is visible does not mean that the song is not loaded....\
-            //  TODO: the Song's _delegate is set when the song is about to be launched,
-            //             this logic is slightly suspect...
-            // if the visible song was not loaded(i.e. was sitting on the SamplerConfigVC without moving to the bankVC)
-            if((_songTVC.samplerConfigVCArray[visibleSongNumber - 1]?.isVisible)! && (_songTVC.samplerConfigVCArray[visibleSongNumber - 1]?.song._delegate == nil))
-            {
-                //  TODO: we might not have to do anything for this case.
-            }
-            //  else if the visible song was displaying a VC other than the SamplerConfigVC
-            else
-            {
-                // pop to the samplerConfigVC
-                _songTVC.navigationController?.popToViewController(_songTVC.samplerConfigVCArray[visibleSongNumber - 1]!, animated: false);
-                
-                if(visibleVC.2 != -1)
-                {
-                    // if we need to push to the BankVC
-                    //  i.e. if the sequenceVC is not visible and the padConfigVC is not visible.
-                    if(!visibleVC.3 && visibleVC.4 == -1)
-                    {
-                        /** 1/21/2018 this might need to be explicitly bumped onto the main thread */
-                        _songTVC.samplerConfigVCArray[visibleSongNumber - 1]?.handleSongLaunch();
-                    }
-                    else
-                    {
-                        // if we need to push to the SequenceVC
-                
-                        // if we need to push to the padConfigVC
-                
-                        //if we need to push to the FileSelectorVC
-                
-                        //  if we need to push to the RecordVC
-                
-                        //  if we need to present the VolumeVC
-                
-                        //  if we need to preset the  EndpointsVC
-                    }
-                }
-            }
-        }
-            // else if we did not find a visible song,
-            //      i.e. the media server reset occurred before a move to a SamplerConfigVC.
-        else
-        {
-            var t = 0;
-        }
-
-    }
-    
-    /** finds and returns the position of the visible View Controller when the media services reset takes place.
-         returns:
-             (
-                 Bool: true if SongTVC is visible
-                 Int:   song number corresponding to samplerConfigVC
-                 Int:   bank number corresponding to BankVC
-                 Bool:  true if SequencePlayVC is visible
-                 Int:   pad number corresponding to padConfigVC
-                 Bool:  true if fileSelectorVC is visible
-             )  */
-    private func findVisibleVC() -> (Bool, Int, Int, Bool, Int, Bool)
-    {
-        var ret = (false, -1, -1, false, -1, false);
-        
-        // check SongTVC
-        if(_songTVC.isVisible)
-        {
-            ret.0 = true;
-            return ret;
-        }
-            // else if SongTVC is not visible.
-        else
-        {
-            //      check samplerConfigVC array
-            for sampConfig in _songTVC.samplerConfigVCArray
-            {
-                ret.1 = (sampConfig?.songNumber)!;
-                
-                if(sampConfig != nil && (sampConfig?.isVisible)!)
-                {
-                    //ret.1 = (sampConfig?.songNumber)!;
-                    return ret;
-                }
-                
-                //    check song.bankVCArray
-                for bankVC in (sampConfig?.song.bankViewStackControllerArray)!
-                {
-                    ret.1 = (sampConfig?.songNumber)!
-                    ret.2 = bankVC!.bankNumber;
-                    
-                    if(bankVC != nil)
-                    {
-                        if(bankVC?.isVisible)!
-                        {
-//                            ret.1 = (sampConfig?.songNumber)!
-//                            ret.2 = bankVC!.bankNumber;
-                            return ret;
-                        }
-                        // else if bankVC is present but not visible
-                        else
-                        {
-                            //                  check bankVC.sequencePlayVC
-                            if(bankVC?.sequencePlayVC != nil && (bankVC?.sequencePlayVC.isVisible)!)
-                            {
-                                //ret.1 = (sampConfig?.songNumber)!
-                                //ret.2 = bankVC!.bankNumber;
-                                ret.3 = true;               // true indicates visible SequencePlayVC
-                                return ret;
-                            }
-                            
-                            if(bankVC?.padConfigVCArray != nil)
-                            {
-                                // if SequencePlayVC is not visible start scanning padConfigVCs
-                                //                  check bankVC.padConfigArray
-                                for padConfigVC in (bankVC?.padConfigVCArray)!
-                                {
-                                    ret.4 = (padConfigVC?.padNumber)!;
-                                    
-                                    if(padConfigVC != nil)
-                                    {
-                                        if(padConfigVC?.isVisible)!
-                                        {
-                                            //ret.1 = (sampConfig?.songNumber)!
-                                            //ret.2 = bankVC!.bankNumber;
-                                            //ret.4 = (padConfigVC?.padNumber)!;
-                                            return ret;
-                                        }
-                                            // else if padConfigVC is present but not visible
-                                        else
-                                        {
-                                            //                      check padConfig.fileSelectorVC
-//                                            if(padConfigVC?.fileSelectorTVC != nil && (padConfigVC?.fileSelectorTVC.isVisible)!)
-//                                            {
-//                                                //ret.1 = (sampConfig?.songNumber)!
-//                                                //ret.2 = bankVC!.bankNumber;
-//                                                ret.5 = true;               // true indicates fileSelectorVC visible
-//                                            }
-                                            
-                                            //                      check padConfig.RecordVC
-                                            if(padConfigVC?.recordVC != nil && (padConfigVC?.recordVC.isVisible)!)
-                                            {
-                                                assert(ret.1 != -1);
-                                                assert(ret.2 != -1);
-                                                assert(ret.4 != -1);
-                                                return ret;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        assert(ret != (false, -1, -1, false, -1, false));
-        return ret;         // <- this should never happen
-    }
-    
-    private func popToSamplerConfigVCIfNeeded(visibleVC: (Bool, Int, Int, Bool, Int, Bool))
-    {}
     
     //  TODO: this method is called when a call comes but before it is answered.
     func applicationWillResignActive(_ application: UIApplication)
@@ -542,14 +330,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate
         // look for any visible songs which are currently connected to the host
         if(_songTVC != nil)
         {
-            // TODO: switch to _songTVC.samplerConfigVCArray
-            if(_songTVC.samplerConfigVCArray.count > 0)       // suspect, may need to make this member and all of its indecies optionals....
+            if(_songTVC.samplerConfigVCArray.count > 0)
             {
                 for i in 0 ..< _songTVC.samplerConfigVCArray.count
                 {
                     if(_songTVC.samplerConfigVCArray[i]?.song.isConnected)!
                     {   _songTVC.samplerConfigVCArray[i]?.song.syncTransmitter.sendSongWillDisconnect();  }
-                    //if(_songTVC.songArray[i].isConnected){   _songTVC.songArray[i].syncTransmitter.sendSongWillDisconnect();  }
                 }
             }
         }
@@ -646,12 +432,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate
         
         for sampler in _songTVC.samplerConfigVCArray where sampler != nil && sampler?.song != nil && sampler?.song.masterSoundMod != nil
         {
-            //if(sampler != nil && sampler?.song != nil && sampler?.song.masterSoundMod != nil) /** 2/2/2018 */
-            //{
                 if(stop && (sampler?.song.masterSoundMod.isRunning)!){  sampler?.song.masterSoundMod.stopMod(); }
                 else if(!stop && !(sampler?.song.masterSoundMod.isRunning)!)
                 {   sampler?.song.masterSoundMod.startMod();    }
-            //}
         }
         
         UIApplication.shared.endIgnoringInteractionEvents();
@@ -659,7 +442,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate
     }
     
     //  TODO: as of 12/14/2017 this does not actually work,
-    //          we should use an observer any way.
+    //          we should use an observer/notification...
     /** if the app enters the background while a song is being loaded due to the Go To Song Button being pushed in the SamplerConfigVC,
             once the app re enters the foreground we need to start animating the activity indicator again */
     func reanimateSamplerConfigVC(){    _songTVC.reanimateSamplerConfigVC();    }
