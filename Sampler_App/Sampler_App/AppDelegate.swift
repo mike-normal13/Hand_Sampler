@@ -169,7 +169,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate
     
     private func setUpAudioInturruptNotification()
     {
-        //  TODO: the apple guide for handling audio inturuptions has this code inside of a function.
         NotificationCenter.default.addObserver(forName: .AVAudioSessionInterruption, object: nil, queue: nil)
         {
             n in
