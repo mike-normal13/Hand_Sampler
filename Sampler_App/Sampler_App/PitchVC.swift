@@ -8,6 +8,7 @@
 
 import UIKit
 
+/** let the user adjust the pitch of a given pad */
 class PitchViewController: PadSettingVC
 {
     let _debugFlag = false;

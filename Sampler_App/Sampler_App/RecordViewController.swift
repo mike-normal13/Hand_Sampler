@@ -15,6 +15,7 @@ import AVFoundation
 //              can we avoid doing this....?
 //  TODO: 1/24/2018 revise all try catch blocks
 
+/** allows the user to record a sound via the mic into a given pad */
 class RecordViewController: SamplerVC, AVAudioRecorderDelegate
 {
     let _debugFlag = true;

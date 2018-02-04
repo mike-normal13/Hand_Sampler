@@ -36,7 +36,8 @@ protocol SamplerConfigParentProtocol: class
 protocol SongCellParentProtocol: class{ func selectCell(index: Int);    }
 
 /** this is the base view controller,
-     one instance of this view controller is owned by the AppDelegate */
+ Allows users to create and select new song instances
+ one instance of this view controller is owned by the AppDelegate */
 class SongViewController: UITableViewController, UINavigationControllerDelegate
 {
     private var _debugFlag = false;

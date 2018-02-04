@@ -25,6 +25,7 @@ protocol SamplerSettingsParentProtocol: class
 protocol SamplerConfigInfoScreenParentProtocol: class
 {   func infoScreenWasPopped(); }
 
+/** Allows users to name/rename songs, launch songs, release a song's loaded memory, and erase a song */
 class SamplerConfigViewController: SamplerVC, UITextFieldDelegate
 {
     private var _debugFlag = false;

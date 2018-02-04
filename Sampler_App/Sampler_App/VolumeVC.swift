@@ -22,6 +22,7 @@ protocol VolumeControlContainerViewParentProtocol: class
     func volumeTouchEnded(y: CGFloat);
 }
 
+/** lets the user adjust the volume for a given pad */
 class VolumeViewController: UIViewController
 {
     private let _debugFlag = false;

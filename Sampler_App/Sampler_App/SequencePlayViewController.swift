@@ -11,6 +11,7 @@ import UIKit
 //  TODO: 1/24/2018 revise all try catch blocks
 //  TODO: 2/2/2018 you can do this:  [1,2,3,4].forEach{print($0)}
 
+/** let's the user step through a sample sequence without having to look at the phone */
 class SequencePlayViewController: SamplerVC
 {
     private let _debugFlag = false;
