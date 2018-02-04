@@ -96,7 +96,6 @@ class RecordViewController: SamplerVC, AVAudioRecorderDelegate
     {
         super.viewDidLoad();
         
-        //  DEBUG: recordings interrupted under certain circumstances are getting saved to disk under this name unintendidly.....
         // in case the user does not name the recorded file
         _defaultFileName = " rec " + _songName + " " + _bankNumber.description + " " + _padNumber.description + ".wav"
     }

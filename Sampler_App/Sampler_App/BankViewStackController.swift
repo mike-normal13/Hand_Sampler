@@ -379,7 +379,6 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
         }
         
         _recordButtonCircle = nil;
-        _oldSeqRecordArray = [];
         
         _delegate = nil;
         

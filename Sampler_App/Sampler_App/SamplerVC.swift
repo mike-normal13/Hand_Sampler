@@ -71,7 +71,4 @@ class SamplerVC: UIViewController
     
     /** Name of the demo song which comes with a small library of sounds for the user's convenience */
     internal let _demoSongName = "Splash! Demo Song";
-    
-    /** removed on 1/18/2018 */
-    //internal lazy var _storyBoard: UIStoryboard! = UIStoryboard.init(name: "Main", bundle: nil);
 }

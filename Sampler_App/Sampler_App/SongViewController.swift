@@ -138,9 +138,6 @@ class SongViewController: UITableViewController, UINavigationControllerDelegate
     {
         super.viewDidLoad();
         
-        // Uncomment the following line to preserve selection between presentations
-        // self.clearsSelectionOnViewWillAppear = false
-        
         var songCount: Int;
         
         // create the application directory if it is not already present.
@@ -198,7 +195,6 @@ class SongViewController: UITableViewController, UINavigationControllerDelegate
         self._opQueue = nil;
         self._samplerConfigVCArray = [];
         self._saver = nil;
-        //self._storyBoard = nil;
         self._tableDataSource = [];
         
         for song in 0 ..< _nSongs
