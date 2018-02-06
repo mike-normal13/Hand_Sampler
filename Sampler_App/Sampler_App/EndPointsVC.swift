@@ -13,6 +13,8 @@ import AVFoundation
 //  DEBUG:  1/19/2018
 //              rotated view is not acceptable
 //  TODO: 1/24/2018 revise all try catch blocks
+//  TODO: 2/2/2018 look into using the where keyword in any foreach loops
+//  TODO: 2/2/2018 you can do this:  [1,2,3,4].forEach{print($0)}
 
 protocol InfoScreenParentProtocol: class
 {   func popInfoScreen();   }
@@ -33,7 +35,7 @@ protocol EndingPointControlContainerViewParentProtocol: class
     func setEndPointIsBeingAdjusted(adjusted: Bool);
 }
 
-/** alows the user to set where a pad ends and begins playback */
+/** allows the user to set where a pad ends and begins playback */
 class EndPointsViewController: PadSettingVC
 {
     private let _debugFlag = false;
@@ -152,6 +154,8 @@ class EndPointsViewController: PadSettingVC
     {
         _startPointControlContainerView.minimumYInterval = Double(startingPointSecondsToYPosition(seconds: _minimumInterval));
         _endPointControlContainerView.minimumYInterval = Double(endingPointSecondsToYPosition(seconds: _minimumInterval));
+        
+        _opQueue = OperationQueue();            // added on 2/5/2018
     }
     
     deinit
@@ -175,8 +179,8 @@ class EndPointsViewController: PadSettingVC
         infoScreen._delegate = self;
         
         present(infoScreen, animated: true, completion: nil);
+        
     }
-    
     @IBAction func handlePreviewButton(_ sender: UIButton){ _delegate.passEndPointsPreview();   }
     
     /** adjust the starting point via the starting point control.
@@ -185,8 +189,6 @@ class EndPointsViewController: PadSettingVC
      to come within no less of the _minimumInterval of the end point. */
     private func handleStartingPointControl(y: CGFloat)
     {
-        if(_opQueue == nil){    _opQueue = OperationQueue();    }
-
         cancelPreview();
         
         // value of _startingPoint is adjusted in checkForMinimumInterval()
@@ -198,8 +200,6 @@ class EndPointsViewController: PadSettingVC
     private func handleStartPointControlRelease(y: CGFloat)
     {
         _previewIsCanceled = false;
-        
-        if(_opQueue == nil){    _opQueue = OperationQueue();    }
         
         _opQueue.addOperation
         {
@@ -236,8 +236,6 @@ class EndPointsViewController: PadSettingVC
         
         _startPointControlContainerView.startPointHeight = startingPointSecondsToYPosition(seconds: _startingPoint);
         _startPointControlContainerView.stopStartPointPosition = _startPointControlContainerView.startPointHeight;
-
-        if(_opQueue == nil){    _opQueue = OperationQueue();    }
 
         _opQueue.addOperation
         {
@@ -292,11 +290,9 @@ class EndPointsViewController: PadSettingVC
     @IBAction func handleStart10thDecrementButtonTouchDown(_ sender: UIButton)
     {
         setBothDragControlsEnabled(enabled: true);
-        
         _start10thIncrementButton.isEnabled = false;
         _start100thDecrementButon.isEnabled = false;
         _start100thIncrementButton.isEnabled = false;
-        
         setAllEndpointButtonsEnabled(enabled: false);
     }
     
@@ -304,13 +300,10 @@ class EndPointsViewController: PadSettingVC
     @IBAction func handleStart10thDecrementButton(_ sender: UIButton)
     {
         handleStartingPointDecrementButton(interval: (_Intervals.tenth.rawValue));
-        
         setBothDragControlsEnabled(enabled: false);
-        
         _start10thIncrementButton.isEnabled = true;
         _start100thDecrementButon.isEnabled = true;
         _start100thIncrementButton.isEnabled = true;
-        
         setAllEndpointButtonsEnabled(enabled: true);
     }
     
@@ -319,11 +312,9 @@ class EndPointsViewController: PadSettingVC
     @IBAction func handleStart10thIncrementButtonTouchDown(_ sender: UIButton)
     {
         setBothDragControlsEnabled(enabled: true);
-        
         _start10thDecrementButton.isEnabled = false;
         _start100thDecrementButon.isEnabled = false;
         _start100thIncrementButton.isEnabled = false;
-        
         setAllEndpointButtonsEnabled(enabled: false);
     }
     
@@ -331,13 +322,10 @@ class EndPointsViewController: PadSettingVC
     @IBAction func handleStart10thIncrementButton(_ sender: UIButton)
     {
         handleStartingPointIncrementButton(interval: (_Intervals.tenth.rawValue));
-        
         setBothDragControlsEnabled(enabled: false);
-        
         _start10thDecrementButton.isEnabled = true;
         _start100thDecrementButon.isEnabled = true;
         _start100thIncrementButton.isEnabled = true;
-        
         setAllEndpointButtonsEnabled(enabled: true);
     }
     
@@ -346,12 +334,9 @@ class EndPointsViewController: PadSettingVC
     @IBAction func handleStart100thDecrementButtonTouchDown(_ sender: UIButton)
     {
         setBothDragControlsEnabled(enabled: true);
-        
         _start10thDecrementButton.isEnabled = false;
         _start10thIncrementButton.isEnabled = false;
-        
         _start100thIncrementButton.isEnabled = false;
-        
         setAllEndpointButtonsEnabled(enabled: false)
     }
     
@@ -359,13 +344,10 @@ class EndPointsViewController: PadSettingVC
     @IBAction func handleStart100thDecrementButton(_ sender: UIButton)
     {
         handleStartingPointDecrementButton(interval: (_Intervals.hundredth.rawValue));
-        
         setBothDragControlsEnabled(enabled: false);
-        
         _start10thDecrementButton.isEnabled = true;
         _start10thIncrementButton.isEnabled = true;
         _start100thIncrementButton.isEnabled = true;
-        
         setAllEndpointButtonsEnabled(enabled: true);
     }
     
@@ -373,11 +355,9 @@ class EndPointsViewController: PadSettingVC
     @IBAction func handleStart100thIncrementButtonTouchDown(_ sender: UIButton)
     {
         setBothDragControlsEnabled(enabled: true);
-        
         _start10thDecrementButton.isEnabled = false;
         _start10thIncrementButton.isEnabled = false;
         _start100thDecrementButon.isEnabled = false;
-        
         setAllEndpointButtonsEnabled(enabled: false);
     }
     
@@ -385,23 +365,17 @@ class EndPointsViewController: PadSettingVC
     @IBAction func handleStart100thIncrementButton(_ sender: UIButton)
     {
         handleStartingPointIncrementButton(interval: (_Intervals.hundredth.rawValue));
-        
         setBothDragControlsEnabled(enabled: false);
-        
         _start10thDecrementButton.isEnabled = true;
         _start10thIncrementButton.isEnabled = true;
         _start100thDecrementButon.isEnabled = true;
-        
         setAllEndpointButtonsEnabled(enabled: true);
     }
     
     /** takes in a y position */
     private func handleEndingPointControl(y: CGFloat)
     {
-        if(_opQueue == nil){    _opQueue = OperationQueue();    }
-
         cancelPreview();
-                
         checkForMinimumInterval(adjustment: Double(y), start: false, button: false);
         _endPointValueLabel.text = _numberFormatter.string(from: NSNumber(floatLiteral: _endPoint))! + " s";
     }
@@ -409,8 +383,6 @@ class EndPointsViewController: PadSettingVC
     private func handleEndingPointControlRelease(y: CGFloat)
     {
         _previewIsCanceled = false;
-        
-        if(_opQueue == nil){    _opQueue = OperationQueue() }
         
         _opQueue.addOperation
         {
@@ -443,8 +415,6 @@ class EndPointsViewController: PadSettingVC
         _endPointControlContainerView.stopEndPointPosition = _endPointControlContainerView.endPointPosition;
         _endPointControlContainerView.endPointHeight = _endPointControlContainerView.frame.height - _endPointControlContainerView.stopEndPointPosition;
         
-        if(_opQueue == nil){    _opQueue = OperationQueue();    }
-
         _opQueue.addOperation
         {
             DispatchQueue.main.async
@@ -466,6 +436,7 @@ class EndPointsViewController: PadSettingVC
         }
         
         _previewIsCanceled = false;
+        
         _startPointControlContainerView.endPointIsBeingAdjusted = false;
     }
     
@@ -497,7 +468,6 @@ class EndPointsViewController: PadSettingVC
     {
         setBothDragControlsEnabled(enabled: true);
         setAllStartPointButtonsEnabled(enabled: false);
-        
         _end10thIncrementButton.isEnabled = false;
         _end100thDecrementButton.isEnabled = false;
         _end100thIncrementButton.isEnabled = false;
@@ -507,10 +477,8 @@ class EndPointsViewController: PadSettingVC
     @IBAction func handleEnd10thDecrementButton(_ sender: UIButton)
     {
         handleEndingPointDecrementButton(interval: _Intervals.tenth.rawValue);
-        
         setBothDragControlsEnabled(enabled: false);
         setAllStartPointButtonsEnabled(enabled: true);
-
         _end10thIncrementButton.isEnabled = true;
         _end100thDecrementButton.isEnabled = true;
         _end100thIncrementButton.isEnabled = true;
@@ -521,7 +489,6 @@ class EndPointsViewController: PadSettingVC
     {
         setBothDragControlsEnabled(enabled: true);
         setAllStartPointButtonsEnabled(enabled: false);
-
         _end10thDecrementButton.isEnabled = false;
         _end100thDecrementButton.isEnabled = false;
         _end100thIncrementButton.isEnabled = false;
@@ -531,10 +498,8 @@ class EndPointsViewController: PadSettingVC
     @IBAction func handleEnd10thIncrementButton(_ sender: UIButton)
     {
         handleEndingPointIncrementButton(interval: _Intervals.tenth.rawValue);
-        
         setBothDragControlsEnabled(enabled: false);
         setAllStartPointButtonsEnabled(enabled: true);
-
         _end10thDecrementButton.isEnabled = true;
         _end100thDecrementButton.isEnabled = true;
         _end100thIncrementButton.isEnabled = true;
@@ -545,7 +510,6 @@ class EndPointsViewController: PadSettingVC
     {
         setBothDragControlsEnabled(enabled: true);
         setAllStartPointButtonsEnabled(enabled: false);
-
         _end10thDecrementButton.isEnabled = false;
         _end10thIncrementButton.isEnabled = false;
         _end100thIncrementButton.isEnabled = false;
@@ -555,10 +519,8 @@ class EndPointsViewController: PadSettingVC
     @IBAction func handleEnd100thDecrementButton(_ sender: UIButton)
     {
         handleEndingPointDecrementButton(interval: _Intervals.hundredth.rawValue);
-        
         setBothDragControlsEnabled(enabled: false);
         setAllStartPointButtonsEnabled(enabled: true);
-
         _end10thDecrementButton.isEnabled = true;
         _end10thIncrementButton.isEnabled = true;
         _end100thIncrementButton.isEnabled = true;
@@ -569,7 +531,6 @@ class EndPointsViewController: PadSettingVC
     {
         setBothDragControlsEnabled(enabled: true);
         setAllStartPointButtonsEnabled(enabled: false);
-
         _end10thDecrementButton.isEnabled = false;
         _end10thIncrementButton.isEnabled = false;
         _end100thDecrementButton.isEnabled = false;
@@ -579,10 +540,8 @@ class EndPointsViewController: PadSettingVC
     @IBAction func handleEnd100thIncrementButton(_ sender: UIButton)
     {
         handleEndingPointIncrementButton(interval: _Intervals.hundredth.rawValue);
-        
         setBothDragControlsEnabled(enabled: false);
         setAllStartPointButtonsEnabled(enabled: true);
-
         _end10thDecrementButton.isEnabled = true;
         _end10thIncrementButton.isEnabled = true;
         _end100thDecrementButton.isEnabled = true;
@@ -981,7 +940,6 @@ class EndingPointControlContainerView: UIView
         if(!_startPointIsBeingAdjusted)
         {
             _stopEndPointPosition = _endPointPosition;
-        
             _delegate.endPointTouchEnded(y: _endPointPosition);
         
             if(_debugFlag)
@@ -996,6 +954,4 @@ class EndingPointControlContainerView: UIView
 }
 
 extension EndPointsViewController: InfoScreenParentProtocol
-{
-    func popInfoScreen(){   dismiss(animated: true, completion: nil);   }
-}
+{   func popInfoScreen(){   dismiss(animated: true, completion: nil);   }   }

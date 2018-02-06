@@ -146,6 +146,8 @@ class SamplerConfigViewController: SamplerVC, UITextFieldDelegate
         _releaseButton.contentHorizontalAlignment = .right;
         
         navigationItem.setRightBarButton(UIBarButtonItem(title: "?", style: .plain, target: self, action: #selector(handleNavBarInfoButton)), animated: false);
+        
+        _saver._delegate = self;
     }
     
     override func viewWillAppear(_ animated: Bool)
@@ -353,7 +355,7 @@ class SamplerConfigViewController: SamplerVC, UITextFieldDelegate
             ///  TODO: updating the transmitter's song name member here is probably haphazard,
             ///             there is probably a better place to do this...
             // update the transmitter's song name member.
-            //_transmitter.songName = proposedName!;
+            //_transmitter.songName = proposedName!;                                      //  THis will probably throw nil......
             //_transmitter.songName = _nameLabel.text!;
             
             rename ? saveRenamedSong(oldName: oldName, newName: _songName, oldNumber: oldSongNumber) : saveNewSong();
@@ -482,8 +484,6 @@ class SamplerConfigViewController: SamplerVC, UITextFieldDelegate
     /** save a song that has been renamed.  */
     private func saveRenamedSong(oldName: String, newName: String, oldNumber: Int)
     {
-        // 12/24/2017 we added this case to fix the scenario of launching a song, renaming it,
-        //          and then launching it again.
         if(_song != nil){   _song = nil;    }
         
         let newDate = Date();
@@ -542,9 +542,13 @@ class SamplerConfigViewController: SamplerVC, UITextFieldDelegate
     {
         self.initAllBankVCs(songNumber: self._songNumber, songName: self._songName);
         
-        if(_song._delegate == nil){    _song._delegate = self;    }
-        if(_song.masterSoundMod == nil){   _song.masterSoundMod = MasterSoundMod(hardwareOutputs: _hardwareOutputs);    }
-        if(_song.masterSoundMod._delegate == nil){  _song.masterSoundMod._delegate = _song; }
+        _song._delegate = self;
+        
+        if(_song.masterSoundMod == nil)
+        {
+            _song.masterSoundMod = MasterSoundMod(hardwareOutputs: _hardwareOutputs);
+            _song.masterSoundMod._delegate = _song;
+        }
         
         // in case of a recent rename,
         //  update the song's name and evrything that the song owns with a song name member
@@ -608,12 +612,9 @@ class SamplerConfigViewController: SamplerVC, UITextFieldDelegate
                 _song = Song(name: songName, songNumber: songNumber, hardwareOutputs: _hardwareOutputs, nBanks: _maxNBanks, bankArray: tempBankArray);
             }
             
-            if(_song.bankViewStackControllerArray[i - 1] == nil)
-            {
-                _song.bankViewStackControllerArray[i - 1] = (self.storyboard?.instantiateViewController(withIdentifier: "BankStackViewController") as! BankViewStackController);
+            _song.bankViewStackControllerArray[i - 1] = (self.storyboard?.instantiateViewController(withIdentifier: "BankStackViewController") as! BankViewStackController);
                
-                _song.bankViewStackControllerArray[i - 1]?._delegate = _song;
-            }
+            _song.bankViewStackControllerArray[i - 1]?._delegate = _song;
             
             // pass song name, song number and bank number down to all three BankVCs
             _song.bankViewStackControllerArray[i - 1]?.songName = songName;
@@ -662,8 +663,6 @@ class SamplerConfigViewController: SamplerVC, UITextFieldDelegate
         navigationController?.present(unnamedSongAlert, animated: true, completion: nil);
     }
     
-    //  DEBUG: as of 12/21/2017 this still does not work...
-    //          need to use an Observer/Notification instead...
     func reanimateSamplerConfigVC()
     {
         if(_isLoading)
@@ -781,8 +780,11 @@ extension SamplerConfigViewController: SongParentProtocol
     func presentBadConnectionChainAlert()
     {
         let badConnectionChainAlert = UIAlertController(title: "Pad Connection Error", message: "The Pad You Just Pressed Was Not Connected Properly, Attempting To Reconnect.", preferredStyle: .alert);
+        
         let okAction = UIAlertAction(title: "OK", style: .default, handler: nil);
+        
         badConnectionChainAlert.addAction(okAction);
+        
         navigationController?.present(badConnectionChainAlert, animated: true, completion: nil);
     }
     
@@ -794,3 +796,7 @@ extension SamplerConfigViewController: SamplerSettingsParentProtocol
 
 extension SamplerConfigViewController: SamplerConfigInfoScreenParentProtocol
 {   func infoScreenWasPopped(){ _infoScreenIsPresented = false; }   }
+
+/** the inherited protocol is defined in SongTVC */
+extension SamplerConfigViewController: SaverParentProtocol
+{   func alertCreateNewSongDirectoryFailed(){   _delegate.alertSamplerConfigCreateNewSongDirectoryFailed(); }   }

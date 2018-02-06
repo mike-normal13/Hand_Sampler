@@ -9,9 +9,6 @@
 import Foundation
 import AVFoundation
 
-//  TODO: 1/24/2018 revise all try catch blocks
-//  TODO: 2/2/2018 you can do this:  [1,2,3,4].forEach{print($0)}
-
 /** represents the model for the Pad concept
  several arrays of these will be owned by the master sound mod */
 class PadModel: Sampler
@@ -126,7 +123,7 @@ class PadModel: Sampler
     private var _fadeOutStartPosition: Int = -1;
     
     /** on 1/6/2018 we went down to 2 player nodes per padModel */
-    private var _playerNodeArrayCount: Int = 2;
+    private var _playerNodeArrayCount: Int = 2; /** 1/11/2018 we tried moving down to 1 node, exception  was thrown */
     var playerNodeArrayCount: Int{    get{    return _playerNodeArrayCount; }   }
     
     /** iterating through an array of player nodes per start command has a number of musical adavantages */
@@ -217,7 +214,7 @@ class PadModel: Sampler
     
     /** the number of frames to play,
      calculated as endPoint - startPoint whenever either the start and end point members are set */
-    private var _playFrameCount: AVAudioFrameCount! = AVAudioFrameCount();
+    private var _playFrameCount: AVAudioFrameCount! = AVAudioFrameCount();                        /** made optional on 12/28/2017 */
     
     /** if this is set to false,
      Play Through trigger mode is selected.
@@ -347,6 +344,7 @@ class PadModel: Sampler
             print("*** PadModel deinitialized, bankNumber: " + _bankNumber.description + " , padNumber: " + _padNumber.description + " , file name: " + _fileName);
         }
         
+        //  DEBUG: this does not seem to release memory when this is getting called......
         _file = nil;
         _fileName = nil;
         _fileBuffer = nil;
@@ -386,19 +384,11 @@ class PadModel: Sampler
     {
         for i in 0 ..< _playerNodeArrayCount
         {
-            if(_playerNodeArray[i] == nil)
-            {
-                var tempNode: AVAudioPlayerNode! = nil;
-                tempNode = AVAudioPlayerNode();
-                _playerNodeArray[i] = tempNode;
-            }
+            let tempPlayerNode: AVAudioPlayerNode! = AVAudioPlayerNode();      // changed on 2/5/2018
+                _playerNodeArray[i] = tempPlayerNode;
             
-            if(_varispeedNodeArray[i] == nil)
-            {
-                var tempNode: AVAudioUnitVarispeed! = nil;
-                tempNode = AVAudioUnitVarispeed();
-                _varispeedNodeArray[i] = tempNode;
-            }
+            var tempVariSpeedNode: AVAudioUnitVarispeed! = AVAudioUnitVarispeed();      // changed on 2/5/2018
+                _varispeedNodeArray[i] = tempVariSpeedNode;
         }
         
         _isLoaded = true;
@@ -413,7 +403,7 @@ class PadModel: Sampler
         
         //  having both start point == 0 and end point == nil here should mean
         //          that we are trying to preview the sound immediatley after choosing it in the FileSelectorVC
-        if(_startPoint == 0 && _endPoint == nil)
+        if(_startPoint == 0 && _endPoint == nil) // TODO: <- don't change this to OR !!!!
         {
             // use the public setter in order to set _playFrameCount
             endPoint = Float(Double((_file.length))/(_file.fileFormat.sampleRate));
@@ -505,9 +495,9 @@ class PadModel: Sampler
         {
             _file.framePosition = Int64(tempStartFrame!);
             _playFrameCount = AVAudioFrameCount(tempEndFrame! - tempStartFrame!);
-
+            
             _fileBuffer = AVAudioPCMBuffer(pcmFormat: (_file.processingFormat), frameCapacity: AVAudioFrameCount(_playFrameCount));
-
+            
             if(_playFrameCount > _fileBuffer.frameCapacity){    _playFrameCount = _fileBuffer.frameCapacity;    }
             
             //  this is the expensive portion of this method...
@@ -557,10 +547,11 @@ class PadModel: Sampler
                     let sample = _fileBuffer!.floatChannelData![n][i] * scalar
                     tempFadeBuffer?.floatChannelData![n][i] = sample;
                 }
-                    
-                // else if we are not in either fade region
+                    // else if we are not in either fade region
                 else if(i >= Int(_fadeSampleCount) && i <= _fadeOutStartPosition)
                 {
+                    //  DEBUG: 1/3/2018
+                    //              adjusting the start and endpoints at the same time made this line throw EXC_BAD_ACCESS
                     // just copy the buffer straight over
                     tempFadeBuffer?.floatChannelData![n][i] = _fileBuffer.floatChannelData![n][i]
                 }
@@ -614,6 +605,24 @@ class PadModel: Sampler
         for i in 0 ..< _fadeReleaseResolution
         {
             _fadeReleaseArray.append(Float(_fadeReleaseResolution - (i + 1))/Float(_fadeReleaseResolution));
+        }
+    }
+    
+    private func applyInitialReleaseFade(start: AVAudioFramePosition, end: AVAudioFramePosition)
+    {
+        var releaseFadeIndex = 0;
+        
+        for i in Int(start) ..< Int(end)
+        {
+            for n in 0 ..< Int(_fileBuffer.format.channelCount)
+            {
+                let scalar = _fadeReleaseArray[releaseFadeIndex];
+                
+                if(n == _fileBuffer.format.channelCount - 1){   releaseFadeIndex += 1;  }
+                
+                let sample = _fileBuffer!.floatChannelData![n][i] * scalar;
+                _fileBuffer.floatChannelData![n][i] = sample;
+            }
         }
     }
     

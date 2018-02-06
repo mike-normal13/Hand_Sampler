@@ -10,7 +10,10 @@ import AVFoundation
 import UIKit
 
 //  TODO: 1/24/2018 revise all try catch blocks
+//  TODO: 2/2/2018 look into using the where keyword in any foreach loops
 //  TODO: 2/2/2018 you can do this:  [1,2,3,4].forEach{print($0)}
+//  TODO: 2/4/2018 startMod() has try/catch
+//  TODO: 2/4/2018 does outPortOverride() get called when we launch a song?
 
 protocol PadModelParentProtocol: class
 {
@@ -170,6 +173,12 @@ class MasterSoundMod: Sampler
             }
         }
         
+        /** 1/19/2018 when the app is first installed,
+                the first time the Go To Song Button is pressed,
+                    this line is causing the "Would Like to access the microphone" alert.
+                        can we set up an instance of mimicing this behavior before the BankVC appears...? */
+            //  DEBUG: according to our exception breakpoint,
+            //              this line is problematic......
         _inputFormat = _engine.inputNode.inputFormat(forBus: 0);
         _outputFormat = _engine.outputNode.outputFormat(forBus: 0);
     }
@@ -196,6 +205,13 @@ class MasterSoundMod: Sampler
             _danglingTimerCounterArray[bank] = [];
         }
     
+        _soundCollection = nil;
+        _volumeDataTimerArray = [];
+        _releaseTimerArray = [];
+        _padMixerArray = [];
+        _releaseTimerArray = [];
+        _danglingTimerCounterArray = [];
+        
         NotificationCenter.default.removeObserver(self);
         
         _inputFormat = nil;
@@ -250,8 +266,7 @@ class MasterSoundMod: Sampler
     }
     
     /** connect each pad in the pad array to a mixer node,
-            and then connect each mixer node for each pad to a single mixer node
-                FYI: THE BANK NUMBER INDEX PASSED TO THIS METHOD IS ZERO INDEXED */
+            and then connect each mixer node for each pad to a single mixer node    */
     func connectPadToMixer(bank: Int, pad: Int)
     {
         if(_outputFormat.channelCount == 0 && _outputFormat.sampleRate == 0.0)
@@ -295,7 +310,6 @@ class MasterSoundMod: Sampler
                     this mixer node's number of channels is set based upon the number of channesl provided by the hard ware. */
         _engine.connect(_padMixerArray[bank][pad]!, to: _engine.mainMixerNode, format: _outputFormat);
         
-        
         installReadTapOnPadMixer(bank: bank, pad: pad);
     }
     
@@ -303,6 +317,7 @@ class MasterSoundMod: Sampler
          gets the current play volume of the player node */
     private func installReadTapOnPadMixer(bank: Int, pad: Int)
     {
+        //if(_debugFlag){ print("~~~~~~~installReadTapOnPadMixer() in masterSoundMod began"); }
         if(_outputFormat.channelCount == 0 && _outputFormat.sampleRate == 0.0)
         {
             if(_debugFlag){ print("!!!!!!! installReadTapOnPadMixer() returned prematurely due to invalid _outputFormat");  }
@@ -361,13 +376,19 @@ class MasterSoundMod: Sampler
                     (_soundCollection[bank]![pad])!.play(preview: preview);
                 }
             }
-
+            
+            /**  TODO: added on 11/28/2017 to deal with the app crashing when we connect to airplay */
+            //  I think it is better to not play the sound at all vs playing the sound late
+            //  on 12/9/2017 we saw this condition met when pressing a pad after comming back from a call,
+            //      we implemented a new check in reconnectEngineAfterAudioRouteChange()
+            //          which prevents a call to startMod() if other audio is playing
+            //              in order to prevent the AVAudioSessionErrorInsufficientPriority run time exception.
             if(!_engine.isRunning){ startMod(); }
         
             // the timer must not be scheduled for any preview or any blank pad
             if(!preview && !sequenceTouch)
             {
-                if(_volumeDataTimerArray[bank][pad] == nil)
+                if(_volumeDataTimerArray[bank][pad] == nil) /** added on 12/22/2017 */
                 {   triggerVolumeTimer(bank: bank, pad: pad);   }
             }
         }
@@ -476,6 +497,7 @@ class MasterSoundMod: Sampler
         if(_padMixerArray[bank].count > 0)
         {   _delegate!.passCurrentVolumeToPadView(bank: bank, pad: pad, volume: _padMixerVolumeDataArray[bank][pad]);   }
         
+        /************************* this is a band aid *********************************************** */
         if(_padMixerVolumeDataArray[bank][pad] == 0){   _danglingTimerCounterArray[bank][pad] += 1; }
         else{   _danglingTimerCounterArray[bank][pad] = 0;  }
         
@@ -488,11 +510,8 @@ class MasterSoundMod: Sampler
             {
                 print("updateVolumeData() in MasterSoundMod canceled dangling timer for bank: " + bank.description + ", pad: " + pad.description);
             }
-        }
+        }/************************************************************************ */
     }
-    
-    
-    /** fade out method ommitted */
     
     
     /** volumes passed into this method are in decibles,
@@ -547,8 +566,9 @@ class MasterSoundMod: Sampler
             //      this might help us avoid a ghost bug....
             _engine!.mainMixerNode;
             
-            if(!AVAudioSession.sharedInstance().isOtherAudioPlaying)
+            if(!AVAudioSession.sharedInstance().isOtherAudioPlaying)        /** added on 12/10/2017 */
             {
+                //  TODO: we should check for engine running here....
                 do
                 {
                     if(!_engine.isRunning){ try _engine.start();    }
@@ -584,6 +604,15 @@ class MasterSoundMod: Sampler
     {
         _engine.stop();
         _isRunning = false;
+    }
+    
+    //  TODO: this is probably obsolete, a remnant of the AudioKit days...
+    /** once all pads are loaded reset the engine */
+    func resetSoundMod()
+    {
+        _engine.stop();
+        do{ try _engine.start();    }
+        catch{  print("MasterSoundMod could not start sound engine upon reset: " + error.localizedDescription); }
     }
     
     func handleAduioRouteChange(notification: Notification)
@@ -634,13 +663,15 @@ class MasterSoundMod: Sampler
 
         DispatchQueue.main.async    /** added on 1/14/2018 */
         {
+            //  TODO: this check helped to solve the IsFormatSampleRateAndChannelCountValid error being thrown
+            //          when audio was being interrupted by an incomming call
             if(UIApplication.shared.applicationState == .active)
             {   self.reconnectEngineAfterAudioRouteChange(notification: notification);  }
             else
             {
                 if(self._debugFlag)
                 {
-                    print("^^^^^^^^^^^ handleAduioRouteChange() in masterSoundMod did not reset the sound graph because the app was inactive");
+                    print(" handleAduioRouteChange() in masterSoundMod did not reset the sound graph because the app was inactive");
                 }
             }
         }
@@ -656,7 +687,7 @@ class MasterSoundMod: Sampler
         do
         {
             try session.setActive(false);
-            if(_debugFlag){ print("outPortOverride() in MasterSoundMod set audio session to inactive");    }
+            if(_debugFlag){ print(" outPortOverride() in MasterSoundMod set audio session to inactive");    }
         }
         catch
         {
@@ -674,7 +705,7 @@ class MasterSoundMod: Sampler
         do
         {
             try session.setActive(true);
-            if(_debugFlag){ print("outPortOverride() in MasterSoundMod set audio session to active");  }
+            if(_debugFlag){ print(" outPortOverride() in MasterSoundMod set audio session to active");  }
         }
         catch
         {
@@ -691,11 +722,12 @@ class MasterSoundMod: Sampler
         {
             if(_debugFlag)
             {
-                print("reconnectEngineAfterAudioRouteChange() in masterSoundMod returned early because app was inactive.");
+                print(" reconnectEngineAfterAudioRouteChange() in masterSoundMod returned early because app was inactive.");
             }
             return;
         }
         
+        /** added on on 12/10/2017 */
         if(_outputFormat.channelCount == 0 && _outputFormat.sampleRate == 0.0)
         {
             if(_debugFlag)
@@ -711,7 +743,7 @@ class MasterSoundMod: Sampler
         disconnectPadMixersAfterRouteChange();
         reconnectPadMixersAfterRouteChange();
         
-        if(!AVAudioSession.sharedInstance().isOtherAudioPlaying)
+        if(!AVAudioSession.sharedInstance().isOtherAudioPlaying)    /***12/9/2017 this might be causing more trouble than it is worth **/
         {   startMod(); }
         else
         {
@@ -745,11 +777,11 @@ class MasterSoundMod: Sampler
                 if(_outputFormat.channelCount != 0 && _outputFormat.sampleRate != 0.0) /**12/9/2017 this might be causing more trouble than it is worth **/
                 {
                     // reconnect pad mixers with updated format after route change.
-                        _engine.connect(_padMixerArray[bank][pad]!, to: _engine.mainMixerNode, format: _outputFormat);
+                    _engine.connect(_padMixerArray[bank][pad]!, to: _engine.mainMixerNode, format: _outputFormat);
                         
                     if(_debugFlag)
                     {
-                        print("reconnectPadMixersAfterRouteChange() in MasterSoundMod connected padMixer bank: " + bank.description + " and pad: " + pad.description + " to engine's main mixer node");
+                        print("!!!!!!!!!!!!reconnectPadMixersAfterRouteChange() in MasterSoundMod connected padMixer bank: " + bank.description + " and pad: " + pad.description + " to engine's main mixer node");
                     }
                 }
                 else
@@ -800,6 +832,7 @@ class MasterSoundMod: Sampler
         {
             for pad in 0 ..< _nPads where _volumeDataTimerArray.count > 0
             {
+
                 if(_volumeDataTimerArray[bank].count > 0)
                 {
                     if(_volumeDataTimerArray[bank][pad] != nil)
@@ -828,7 +861,10 @@ class MasterSoundMod: Sampler
                         if(_releaseTimerArray[bank][pad]?.isValid)!
                         {
                             _releaseTimerArray[bank][pad]?.invalidate();
-                            if(_debugFlag){ print("fade out timer was invalidated for bank: " + bank.description + " and pad: " + pad.description); }
+                            if(_debugFlag)
+                            {
+                                print("fade out timer was invalidated for bank: " + bank.description + " and pad: " + pad.description);
+                            }
                         }
                     }
                 }
@@ -909,7 +945,10 @@ class MasterSoundMod: Sampler
                 print("checkForPadConnection() in MasterSoundMod found no OUT connection for bank: " + bank.description + " pad: " +  pad.description + " varispeed node");
             }
             
+            //  TODO: this might be problematic because the method attemps to reconnect all 5 nodes,
+            //          when it is possible that only one of the nodes is disconected.....
             tryReconnectingVarispeedNodeToPadMixerNode(bank: bank, pad: pad);
+            
             connectionIsValid = false;
         }
         
@@ -956,6 +995,7 @@ class MasterSoundMod: Sampler
         if(!connectionIsValid){ _delegate.passPresentBadConnectionChainAlert(); }
         
         _padConnectionStatusArray[bank][pad] = connectionIsValid;
+        
         return connectionIsValid;
     }
     
@@ -1004,6 +1044,25 @@ class MasterSoundMod: Sampler
         return false;
     }
     
+    private func stopAllCurrentPlayerNodes()
+    {
+        if(_soundCollection != nil && _soundCollection.count != 0)
+        {
+            for bank in 0 ..< _nBanks
+            {
+                if(_soundCollection[bank] != nil && _soundCollection[bank]?.count != 0)
+                {
+                    for pad in 0 ..< _nPads where _soundCollection[bank]![pad] != nil
+                    {
+                        for node in 0 ..< (_soundCollection[bank]![pad]?.playerNodeArrayCount)!
+                        {
+                            _soundCollection[bank]![pad]?.playerNodeArray[node]?.stop();
+                        }
+                    }
+                }
+            }
+        }
+    }
     
     func cancelPlayThrough(bank: Int)
     {
@@ -1022,7 +1081,10 @@ class MasterSoundMod: Sampler
         }
     }
     
-    func cancelPreview(bank: Int, pad: Int){    _soundCollection[bank]![pad]?.stop(preview: true);  }
+    func cancelPreview(bank: Int, pad: Int)
+    {
+        _soundCollection[bank]![pad]?.stop(preview: true);     // suspect
+    }
 }//----------------------------------------------   END OF MASTER SOUND MOD --------------------------------------------------------------
 
 extension MasterSoundMod: PadModelParentProtocol
@@ -1046,6 +1108,24 @@ extension MasterSoundMod: PadModelParentProtocol
                 if((_releaseTimerArray[bank][pad] == nil))                                          //Duplicate
                 {
                     self._releaseTimerArray[bank][pad] = Timer.scheduledTimer(timeInterval: _fadeOutTimerInterval, target: self, selector: #selector(self.playthroughFadeout(timer:)), userInfo: (bank, pad, preFadeVolume, index), repeats: true);  //Duplicate
+                }
+            }
+        }
+    }
+    
+    func passPlaythroughEndedInvalidateVolumeTimer(bank: Int, pad: Int)
+    {
+        if(_volumeDataTimerArray[bank][pad] != nil && (_volumeDataTimerArray[bank][pad]?.isValid)!)
+        {
+            if(!self._soundCollection[bank]![pad]!.isTouched)
+            {
+                DispatchQueue.main.async
+                {
+                    if(self._volumeDataTimerArray[bank][pad] != nil)    /** added on 1/7/2018 */
+                    {
+                        self._volumeDataTimerArray[bank][pad]!.invalidate();
+                        self._volumeDataTimerArray[bank][pad] = nil;
+                    }
                 }
             }
         }

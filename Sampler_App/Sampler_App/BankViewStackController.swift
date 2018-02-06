@@ -18,8 +18,6 @@ import AVFoundation
 //                  blank pads are displaying the proper file name....
 //  DEBUG:  1/19/2018
 //              rotated view is not acceptable
-//  TODO: 1/24/2018 revise all try catch blocks
-//  TODO: 2/2/2018 you can do this:  [1,2,3,4].forEach{print($0)}
 
 /** pass sound triggering info up the class hierarchy eventually bound for the master sound mod */
 protocol ParentPadViewProtocol: class
@@ -118,7 +116,7 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
     /** move to the sequenceVC if a pad sequence has been recorded */
     @IBOutlet weak var _forwardButton: UIButton!
     
-    private var _nBanks = 3;        //  TODO: this value is not passed down...
+    private var _nBanks = 3;        // this value is not passed down!!!
     
     override var songName: String // private member in superclass
     {
@@ -301,7 +299,10 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
         _padLoader = PadLoader(songName: _songName, songNumber: _songNumber, bank: _bankNumber);
         
         if(_songName == _demoSongName){ loadDemoPadFiles(); }
-        else{   loadPadFiles(); }
+        else
+        {
+            loadPadFiles();
+        }
         
         loadPadSettings();
     }
@@ -324,6 +325,7 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
         loadPadSettings();
         
         _numberOfCurrentlyTouchedPads = 0;
+        
         navigationController?.interactivePopGestureRecognizer?.isEnabled = true;
     }
     
@@ -331,27 +333,26 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
     {
         stopAllPads();
         
-            //  TODO: this code is duplicated in the SequenceVC
-            // adjust current bank button color
-            if(self._bankNumber == 1)
-            {
-                self._bankSelectorButton1.backgroundColor = .darkGray;
-                self._bankSelectorButton2.backgroundColor = .lightGray;
-                self._bankSelectorButton3.backgroundColor = .lightGray;
-            }
-            else if(self._bankNumber == 2)
-            {
-                self._bankSelectorButton1.backgroundColor = .lightGray;
-                self._bankSelectorButton2.backgroundColor = .darkGray;
-                self._bankSelectorButton3.backgroundColor = .lightGray;
-            }
-            else
-            {
-                assert(self._bankNumber == 3);
-                self._bankSelectorButton1.backgroundColor = .lightGray;
-                self._bankSelectorButton2.backgroundColor = .lightGray;
-                self._bankSelectorButton3.backgroundColor = .darkGray;
-            }
+        // adjust current bank button color
+        if(self._bankNumber == 1)
+        {
+            self._bankSelectorButton1.backgroundColor = .darkGray;
+            self._bankSelectorButton2.backgroundColor = .lightGray;
+            self._bankSelectorButton3.backgroundColor = .lightGray;
+        }
+        else if(self._bankNumber == 2)
+        {
+            self._bankSelectorButton1.backgroundColor = .lightGray;
+            self._bankSelectorButton2.backgroundColor = .darkGray;
+            self._bankSelectorButton3.backgroundColor = .lightGray;
+        }
+        else
+        {
+            assert(self._bankNumber == 3);
+            self._bankSelectorButton1.backgroundColor = .lightGray;
+            self._bankSelectorButton2.backgroundColor = .lightGray;
+            self._bankSelectorButton3.backgroundColor = .darkGray;
+        }
     }
     
     override func viewWillDisappear(_ animated: Bool)
@@ -378,7 +379,11 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
             }
         }
         
+        _padConfigVCArray = nil;
+        _sequencePlayVC = nil;
+        
         _recordButtonCircle = nil;
+        _oldSeqRecordArray = [];
         
         _delegate = nil;
         
@@ -564,6 +569,11 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
             self._stackPadViewArray[i].layer.borderColor = UIColor.white.cgColor;
             self._stackPadViewArray[i].layer.cornerRadius = 5;
             
+            /** added on 2/5/2018 to make the pad name labels orient the way we want,
+                    needs testing on all devices */
+            _stackPadViewArray[i].transform = CGAffineTransform(rotationAngle: .pi/2)
+            _stackPadViewArray[i].placeLabel();
+            
             _stackPadViewArray[i].delegate = self;
         }
     }
@@ -596,7 +606,6 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
                 for file in 0 ..< allMuiscFiles.count where allMuiscFiles[file]?.lastPathComponent == currentFileName
                 {
                     // if the current url's last path compenent matches the loaded file name....
-                    
                     fileFound = true;
                         
                     // any time we load a file,
@@ -605,8 +614,10 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
                     //          so there is no reason to pass the load arg here like we do with the starting point call method.
                     _opQueue.addOperation
                     {   self.callDelegatePassSelectedFile(file: allMuiscFiles[file]!, pad: i, section: -1, row: -1);    }
-                        
+                    
+                    
                     self._stackPadViewArray[i].isLoaded = true;
+                    self._stackPadViewArray[i].fileName = currentFileName!;    /** added on 2/5/2018 */
                     break;
                 }
                 _opQueue.waitUntilAllOperationsAreFinished();   // TODO: having this fence here gave much better results(20/20),
@@ -617,14 +628,8 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
                     _opQueue.addOperation
                     {
                         DispatchQueue.main.async
-                        {
-                            //  DEBUG: how do we not make this call untill the previous file missing alert has been dismissed...?
-                            self.alertUserOfMissingFile(name: currentFileName!, bank: self._bankNumber, pad: i);
-                            //self._opQueue.waitUntilAllOperationsAreFinished();
-                        }
-                        //self._opQueue.waitUntilAllOperationsAreFinished();
+                        {   self.alertUserOfMissingFile(name: currentFileName!, bank: self._bankNumber, pad: i);    }
                     }
-                    //_opQueue.waitUntilAllOperationsAreFinished();
                 }
             }
         }
@@ -646,30 +651,26 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
         this method's block of code was preceeded by the code in connectAllLoadedPads() */
     private func initAllPadConfigVCs()
     {
-        /** Band Aid */
+        /** Band Aid Alert */
         if(_songName == _demoSongName && _bankNumber != 1){ return; }
         
         // init each loaded pad's configVC
         for i in 0 ..< _nPads where self._stackPadViewArray[i].isLoaded
         {
-            // this only inits a config VC if a file has been saved into the pad in question
-            if(self._padConfigVCArray[i] == nil)
-            {
-                _padConfigVCArray[i] = self.storyboard?.instantiateViewController(withIdentifier: "PadConfig") as? PadConfigViewControler;
-                self._padConfigVCArray[i]?.isLoaded = true;
+            _padConfigVCArray[i] = self.storyboard?.instantiateViewController(withIdentifier: "PadConfig") as? PadConfigViewControler;
+            self._padConfigVCArray[i]?.isLoaded = true;
                     
-                // for some reason the instantiation above is leaving a bunch of values nil,
-                //  requesting a VC's view will cause loadView() & viewDidLoad() to be called if the view is nil.
-                let _ = self._padConfigVCArray[i]?.view;  // this is absoloutly necessary
+            // for some reason the instantiation above is leaving a bunch of values nil,
+            //  requesting a VC's view will cause loadView() & viewDidLoad() to be called if the view is nil.
+            let _ = self._padConfigVCArray[i]?.view;  // this is absoloutly necessary
                     
-                self._padConfigVCArray[i]?.songName = self._songName;
-                self._padConfigVCArray[i]?.songNumber = self._songNumber;
-                self._padConfigVCArray[i]?.bankNumber = self._bankNumber;
-                self._padConfigVCArray[i]?._delegate = self;
-                self._padConfigVCArray[i]?.padNumber = i;
-                _padConfigVCArray[i]?.padSaver = PadSaver(songName: _songName, songNumber: _songNumber, bankNumber: _bankNumber, padNumber: i);
-                self._padConfigVCArray[i]?.isConnected = self._isConnected;
-            }
+            self._padConfigVCArray[i]?.songName = self._songName;
+            self._padConfigVCArray[i]?.songNumber = self._songNumber;
+            self._padConfigVCArray[i]?.bankNumber = self._bankNumber;
+            self._padConfigVCArray[i]?._delegate = self;
+            self._padConfigVCArray[i]?.padNumber = i;
+            _padConfigVCArray[i]?.padSaver = PadSaver(songName: _songName, songNumber: _songNumber, bankNumber: _bankNumber, padNumber: i);
+            self._padConfigVCArray[i]?.isConnected = self._isConnected;
         }
     }
     
@@ -693,7 +694,10 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
         for i in 0 ..< _nPads
         {
             let currentDemoFileName = _padLoader.loadDemoFile(padNumber: i);
+
             self.callDelegatePassSelectedFile(file: currentDemoFileName! as URL, pad: i, section: -1, row: -1);
+            self._stackPadViewArray[i].fileName = (currentDemoFileName?.lastPathComponent)!;    /** added on 2/5/2018 */
+
             self._stackPadViewArray[i].isLoaded = true;
         }
     }
@@ -707,12 +711,6 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
         
         missingFileAlert.addAction(okAction);
         
-        //  DEBUG:  12/28/2017
-        //              code does not halt on account of an alert being presented.
-        //                  when we have multiple files missing,
-        //                      this call is made in quick succession before we actually see the presentation of the first alert...
-        //              maybe we could make this call outside of this method...???
-        //                  maybe have this method return the alertVC....????
         navigationController?.present(missingFileAlert, animated: true, completion: nil);
     }
     
@@ -798,12 +796,7 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
                 
             _padConfigVCArray[i]?.endPoint = Double((endPoint == nil) ? 0.0 : endPoint!);
                 
-            _opQueue.addOperation
-            {
-                //  DEBUG: on 1/8/2018 endPoint came up nil when we tried to load the demo on song on old iPad,
-                //              this does not happen consistently
-                self.callDelegatePassEndPoint(pad: i, endPoint: Double((endPoint!)));
-            }
+            _opQueue.addOperation{  self.callDelegatePassEndPoint(pad: i, endPoint: Double((endPoint!)));   }
         }
         _opQueue.waitUntilAllOperationsAreFinished();
     }
@@ -817,7 +810,7 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
             _delegate.stop(bank: _bankNumber - 1, pad: pad, preview: false);
         }
         
-        if(_debugFlag){ print("stopAllPads() complete----------");   }
+        if(_debugFlag){ print("stopAllPads() complete---------------------------------");   }
     }
     
     /** neccessary to resolve the corner case where the user has a pad(s) pressed down
@@ -835,10 +828,6 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
             for pad in 0 ..< _nPads
             {
                 if(_stackPadViewArray[pad].isTouched){  self._stackPadViewArray[pad].backgroundColor = .black   }
-                // DEBUG: as of 1/4/2018
-                //          this else statement partially solves playthrough pads not going black when they get cancelled by another pad,
-                //              with this else statement,
-                //                  the playthrough pad will stay red until the other canceling pad is released..
                 else
                 {
                     if(!_stackPadViewArray[pad].startStopTriggerMode)
@@ -866,6 +855,7 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
     {
         guard(_bankNumber != 1) else{   return; }
         
+        /** switched on 12/24/2017 */
         // if we leave the VC while we were making a sequence recording...
         if(_isRecording){   toggleRecordOff();  }
         
@@ -878,6 +868,7 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
     {
         guard(_bankNumber != 2) else{   return; }
         
+        /** switched on 12/24/2017 */
         if(_isRecording){   toggleRecordOff();  }
         
         navigationController?.popViewController(animated: false);
@@ -889,6 +880,7 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
     {
         guard(_bankNumber != 3) else{   return; }
         
+        /** switched on 12/24/2017 */
         if(_isRecording){   toggleRecordOff();  }
         
         navigationController?.popViewController(animated: false);
@@ -901,6 +893,7 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
     /** move to the selected pad's configVC */
     private func handleConfigButton(_ sender: UIButton)
     {
+        // if we're moving to a configVC for an empty pad.
         if(_padConfigVCArray[_currentlyTouchedPadIndex] == nil)
         {
             _padConfigVCArray[_currentlyTouchedPadIndex] = self.storyboard?.instantiateViewController(withIdentifier: "PadConfig") as? PadConfigViewControler;
@@ -922,8 +915,8 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
         //  https://stackoverflow.com/questions/37829721/pushing-view-controller-twice
         if(navigationController?.topViewController != _padConfigVCArray[_currentlyTouchedPadIndex])
         {
-            //  TODO: this is a very, very un snazzy way of doing things...
-            if(sender.tag == -654)
+            //  TODO: this is a very, very, very un snazzy way of doing things......
+            if(sender.tag == -666)
             {   navigationController?.pushViewController(_padConfigVCArray[_currentlyTouchedPadIndex]!, animated: false);   }
             else{   navigationController?.pushViewController(_padConfigVCArray[_currentlyTouchedPadIndex]!, animated: true);    }
         }
@@ -981,7 +974,7 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
             saveSequenceAndStopRecording();
             alertRecordingWasSaved();
         }
-        // if no sequence was recorded
+            // if no sequence was recorded
         else
         {
             retreiveSequenceArray();
@@ -1103,6 +1096,7 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
     
     /** Reset record button.
              Save the recorded sequence to disk.
+            The Record Sequence array always gets saved twice...
          This method also sets all the padConfgVCs whose corresponding pad is part of the sequence _isPartOfSequence flag to true.*/
     private func saveSequenceAndStopRecording()
     {
@@ -1167,21 +1161,6 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
         }
     }
     
-    /** this method is an attempt to eliminate a call to the AVAudioFile init in the PadLoader's getFileDuration() Method,
-            This method is called in the Song's passSelectedFileToMasterSoundMod() method
-     it would be nice to have this in place by the release,
-     but it might cause more problems than it is worth */
-//    func passFileDurationBackToView(pad: Int, duration: Double)
-//    {
-//        if(_padConfigVCArray.count != 0)
-//        {
-//            if(_padConfigVCArray[pad] != nil)
-//            {
-//                _padConfigVCArray[pad]?.passFileDurationBackToView(duration: duration);
-//            }
-//        }
-//    }
-    
     /** send play call up the class hierarchy,
      send play signal to host if this song is connected to host(currently depricated)
      and adjust the UI accordingly. */
@@ -1202,7 +1181,6 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
         _lastTouchedPadIndex = _currentlyTouchedPadIndex;
         _currentlyTouchedPadIndex = number;
         
-        //  DEBUG: this assignment is vunerable to corruption if the user spastically pressses pads...
         _numberOfCurrentlyTouchedPads += 1;
         
         if(_lastTouchedPadIndex != _currentlyTouchedPadIndex && _numberOfCurrentlyTouchedPads == 1)
@@ -1231,7 +1209,6 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
         if(number != _currentlyTouchedPadIndex){    _stackPadViewArray[number].backgroundColor = .black; }
         
         //  DEBUG: this assignment is vunerable to corruption if the user spastically pressses pads,
-        //          I'm not sure how to remedy this.....
         //           This might be an angle:
         //              http://en.swifter.tips/lock/
         //                      sceptical....
@@ -1239,26 +1216,13 @@ class BankViewStackController: SamplerVC, UIAlertViewDelegate
         _numberOfCurrentlyTouchedPads -= 1;
         
         _stackPadViewArray[number].touchIndex = 0;
-
+        
         if(_numberOfCurrentlyTouchedPads == 0)
         {
             if(!sequenceTouch){ resetPadColors();   }
         }
     }
         
-    /** --------------------------  SPAGHETTI ALERT -----------------------------------------------
-     because of the abhorrent design decision by the person who wrote this code --
-     myself,
-     michael fleming
-     --  to not have member _bankNumbers be Zero indexed,
-     any _bankNumber passed to any of these Pass methods needs to be - 1
-         whithout a doubt,
-             this was the worst design decision for the entire app....
-     -----------------------------------------------------------------------------------------*/
-    /** this method is called regardless of whether a file is being loaded from disk for a song load,
-             if the User selected a file from the fileSelectorVC,
-                 or if the user has recorded a sound into a pad.
-             If this method is called as result of a song load this method is called on a seperate thread.*/
     func callDelegatePassSelectedFile(file: URL, pad: Int, section: Int, row: Int)
     {   _delegate.passSelectedFileToMasterSoundMod(file: file, bank: bankNumber - 1, pad: pad, section: section, row: row); }
     func callDelegateConnectLoadedPadToMixer(pad: Int)
@@ -1301,15 +1265,24 @@ extension BankViewStackController: ParentPadViewProtocol
         _numberOfCurrentlyTouchedPads = 0;
     }
     
-    func panMoveToPadConfig(number: Int){   handleConfigButton(UIButton()); }
+    func panMoveToPadConfig(number: Int)
+    {
+        _stackPadViewArray[number].fileLabel.textColor = .yellow;
+        handleConfigButton(UIButton());
+        
+    }
     func passResetPadColors(){  resetPadColors();   }
 }
 
 /** extension for PadConfigVC */
 extension BankViewStackController: PadConfigVCParentProtocol
 {
+    /** update the model and the view */
     internal func passSelectedFile(file: URL, pad: Int, section: Int, row: Int)
-    {   callDelegatePassSelectedFile(file: file, pad: pad, section: section, row: row); }
+    {
+        callDelegatePassSelectedFile(file: file, pad: pad, section: section, row: row);
+        _stackPadViewArray[pad].fileName = file.lastPathComponent;
+    }
     func sendConnectPadToMixer(pad: Int)
     {
         _delegate.sendConnectPadToMixer(bank: _bankNumber - 1, pad: pad);
@@ -1386,7 +1359,13 @@ extension BankViewStackController: PadConfigVCParentProtocol
     
     func passInvalidateFadeOutTimers(){ _delegate.passInvalidateFadeOutTimers(); }
     func passEraseFile(file: URL) { _delegate.passEraseFile(file: file); }
-    func cancelPreview(pad: Int){   _delegate.cancelPreview(bank: _bankNumber - 1, pad: pad);   }
+    func cancelPreview(pad: Int)
+    {
+        /** we updated to the ladder on 1/6/2018
+                in order to have a dedicated pathway for canceling,
+                    before the way we were doing this was very convolouted and problematic */
+        _delegate.cancelPreview(bank: _bankNumber - 1, pad: pad);
+    }
     func clearSequence()
     {
         resetPadConfigsIsPartOfSequence();
